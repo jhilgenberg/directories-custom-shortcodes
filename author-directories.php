@@ -27,7 +27,8 @@ function display_author_directories($atts) {
         'posts_per_page' => -1,          
         'orderby' => 'date',             
         'order' => 'DESC',
-        'title' => '' // Neue Option für die Überschrift
+        'title' => '', // Neue Option für die Überschrift
+        'days' => 0 // 0 bedeutet alle Einträge
     ), $atts);
 
     // Hole die aktuelle Post ID
@@ -46,10 +47,54 @@ function display_author_directories($atts) {
         'post_type' => $atts['post_type'],
         'author' => $author_id,
         'posts_per_page' => $atts['posts_per_page'],
-        'orderby' => $atts['orderby'],
+        'orderby' => 'date',
         'order' => $atts['order'],
         'post_status' => 'publish'
     );
+
+    // Spezielle Behandlung für Kurse
+    if ($atts['post_type'] === 'kurse_dir_ltg') {
+        global $wpdb;
+        
+        // Hole alle Post-IDs mit zukünftigen Terminen und deren Daten
+        $current_timestamp = time();
+        $future_courses = $wpdb->get_results($wpdb->prepare(
+            "SELECT entity_id, value as start_date 
+            FROM {$wpdb->prefix}drts_entity_field_date 
+            WHERE entity_type = 'post' 
+            AND bundle_name = 'kurse_dir_ltg' 
+            AND field_name = 'field_kurs_terminbeginn' 
+            AND value >= %d 
+            ORDER BY value ASC",
+            $current_timestamp
+        ));
+
+        if (empty($future_courses)) {
+            return '<p>Aktuell sind keine zukünftigen Kurse verfügbar.</p>';
+        }
+
+        // Erstelle ein Array mit Kursdaten
+        $course_dates = array();
+        $post_ids = array();
+        foreach ($future_courses as $course) {
+            $course_dates[$course->entity_id] = $course->start_date;
+            $post_ids[] = $course->entity_id;
+        }
+
+        // Füge die Post-IDs zur Query hinzu
+        $args['post__in'] = $post_ids;
+        $args['orderby'] = 'post__in';
+    }
+
+    // Füge Datumsfilter hinzu, wenn days > 0 (nur für nicht-Kurs Post Types)
+    if ($atts['post_type'] !== 'kurse_dir_ltg' && !empty($atts['days']) && $atts['days'] > 0) {
+        $args['date_query'] = array(
+            array(
+                'after' => date('Y-m-d', strtotime('-' . intval($atts['days']) . ' days')),
+                'inclusive' => true,
+            ),
+        );
+    }
 
     // Query ausführen
     $query = new WP_Query($args);
@@ -80,6 +125,14 @@ function display_author_directories($atts) {
                         <div class="directory-card-content">
                             <div class="directory-card-text">
                                 <h3><a href="<?php the_permalink(); ?>"><?php the_title(); ?></a></h3>
+                                <?php if ($atts['post_type'] === 'kurse_dir_ltg' && isset($course_dates[get_the_ID()])): ?>
+                                    <div class="directory-date">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-right: 5px;">
+                                            <path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zM5 6v2h14V6H5zm2 4h10v2H7v-2z" fill="currentColor"/>
+                                        </svg>
+                                        <?php echo date_i18n('d.m.Y', $course_dates[get_the_ID()]); ?>
+                                    </div>
+                                <?php endif; ?>
                                 <div class="directory-excerpt">
                                     <?php echo wp_trim_words(get_the_excerpt(), 15); ?>
                                 </div>
@@ -271,6 +324,19 @@ function add_author_directories_styles() {
             .author-directories-container {
                 padding: 0 35px;
             }
+        }
+
+        .directory-date {
+            display: flex;
+            align-items: center;
+            color: #666;
+            font-size: 0.9em;
+            margin: 8px 0;
+            padding: 4px 0;
+        }
+
+        .directory-date svg {
+            flex-shrink: 0;
         }
     </style>
 
