@@ -70,7 +70,7 @@ Bei Fragen oder Problemen wenden Sie sich bitte an den Plugin-Autor.
 
 ### Version 1.1
 - Neuer Parameter hide_empty zum kompletten Ausblenden leerer Elemente
-- Anzeige des Veröffentlichungsdatums bei Jobs und News
+- Neuer Parameter show_date zum Anzeigen des Datums
 - Verbesserte Slider-Navigation
 - Fehlerbehebung bei der Datumsanzeige von Kursen
 
