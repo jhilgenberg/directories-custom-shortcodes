@@ -14,7 +14,6 @@ Dieses Plugin ermöglicht es, Directory-Einträge des aktuellen Autors mittels e
 [show_author_directories]
 ```
 
-
 ### Parameter
 Der Shortcode kann mit verschiedenen Parametern angepasst werden:
 
@@ -25,20 +24,25 @@ Der Shortcode kann mit verschiedenen Parametern angepasst werden:
 | days | Zeitraum in Tagen für die Anzeige | 0 (alle) | days="30" |
 | posts_per_page | Anzahl der anzuzeigenden Einträge | -1 (alle) | posts_per_page="5" |
 | order | Sortierreihenfolge | DESC | order="ASC" |
+| hide_empty | Versteckt Element wenn keine Einträge vorhanden | no | hide_empty="yes" |
+| show_date | Zeigt das Datum an (Kurstermin/Veröffentlichung) | no | show_date="yes" |
 
 ### Beispiele
 
-#### Jobangebote der letzten 30 Tage
+#### Jobangebote der letzten 30 Tage mit Datum
 ```
-[show_author_directories post_type="jobangebote_dir_ltg" title="Aktuelle Jobs" days="30"]
+[show_author_directories post_type="jobangebote_dir_ltg" title="Aktuelle Jobs" days="30" show_date="yes"]
 ```
 
-
-#### Zukünftige Kurse
+#### Zukünftige Kurse (versteckt wenn keine vorhanden)
 ``` 
-[show_author_directories post_type="kurse_dir_ltg" title="Kommende Kurse"] 
+[show_author_directories post_type="kurse_dir_ltg" title="Kommende Kurse" hide_empty="yes"] 
 ```
 
+#### News mit Überschrift (auch anzeigen wenn leer)
+```
+[show_author_directories post_type="news_dir_ltg" title="Aktuelle News" hide_empty="no"]
+```
 
 ### Besonderheiten
 
@@ -47,9 +51,10 @@ Der Shortcode kann mit verschiedenen Parametern angepasst werden:
 - Sortiert automatisch nach dem nächsten Starttermin
 - Der Parameter "days" wird hier nicht berücksichtigt
 
-#### Jobangebote und andere Post-Types
+#### Jobangebote und News
 - Können nach Zeitraum gefiltert werden (Parameter "days")
 - Werden standardmäßig nach Erstellungsdatum sortiert
+- Zeigen das Veröffentlichungsdatum an
 
 ## Styling
 Das Plugin kommt mit einem integrierten, responsiven Design:
@@ -62,6 +67,12 @@ Das Plugin kommt mit einem integrierten, responsiven Design:
 Bei Fragen oder Problemen wenden Sie sich bitte an den Plugin-Autor.
 
 ## Changelog
+
+### Version 1.1
+- Neuer Parameter hide_empty zum kompletten Ausblenden leerer Elemente
+- Anzeige des Veröffentlichungsdatums bei Jobs und News
+- Verbesserte Slider-Navigation
+- Fehlerbehebung bei der Datumsanzeige von Kursen
 
 ### Version 1.0
 - Initiale Version

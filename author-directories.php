@@ -2,8 +2,8 @@
 /*
 Plugin Name: Author Directories Display
 Plugin URI: 
-Description: Zeigt Directory-Einträge des aktuellen Autors mittels Shortcode an
-Version: 1.0
+Description: Zeigt Directory-Einträge des aktuellen Autors mittels Shortcode an. Unterstützt Jobs, News und Kurse mit verschiedenen Anzeigeoptionen.
+Version: 1.1
 Author: Julian Hilgenberg
 License: GPL v2 or later
 */
@@ -27,8 +27,10 @@ function display_author_directories($atts) {
         'posts_per_page' => -1,          
         'orderby' => 'date',             
         'order' => 'DESC',
-        'title' => '', // Neue Option für die Überschrift
-        'days' => 0 // 0 bedeutet alle Einträge
+        'title' => '', // Option für die Überschrift
+        'days' => 0, // 0 bedeutet alle Einträge
+        'hide_empty' => 'no', // 'yes' oder 'no'
+        'show_date' => 'no' // Neuer Parameter für Datumsanzeige
     ), $atts);
 
     // Hole die aktuelle Post ID
@@ -99,11 +101,16 @@ function display_author_directories($atts) {
     // Query ausführen
     $query = new WP_Query($args);
 
+    // Prüfen ob wir leere Ergebnisse ausblenden sollen
+    if (!$query->have_posts() && $atts['hide_empty'] === 'yes') {
+        return '';
+    }
+
     // Output Buffer starten
     ob_start();
 
-    // Überschrift anzeigen, wenn gesetzt
-    if (!empty($atts['title'])) {
+    // Überschrift nur anzeigen wenn Posts gefunden wurden ODER hide_empty=no
+    if (($query->have_posts() || $atts['hide_empty'] === 'no') && !empty($atts['title'])) {
         echo '<div class="drts-entity-field-label drts-entity-field-label-type-custom drts-display-element-header"><span>' . esc_html($atts['title']) . '</span></div>';
     }
 
@@ -125,14 +132,33 @@ function display_author_directories($atts) {
                         <div class="directory-card-content">
                             <div class="directory-card-text">
                                 <h3><a href="<?php the_permalink(); ?>"><?php the_title(); ?></a></h3>
-                                <?php if ($atts['post_type'] === 'kurse_dir_ltg' && isset($course_dates[get_the_ID()])): ?>
-                                    <div class="directory-date">
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-right: 5px;">
-                                            <path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zM5 6v2h14V6H5zm2 4h10v2H7v-2z" fill="currentColor"/>
-                                        </svg>
-                                        <?php echo date_i18n('d.m.Y', $course_dates[get_the_ID()]); ?>
-                                    </div>
-                                <?php endif; ?>
+                                <?php 
+                                // Zeige Datum für Kurse
+                                if ($atts['show_date'] === 'yes'):
+                                    if ($atts['post_type'] === 'kurse_dir_ltg' && isset($course_dates[get_the_ID()])): ?>
+                                        <div class="directory-date">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-right: 5px;">
+                                                <path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zM5 6v2h14V6H5zm2 4h10v2H7v-2z" fill="currentColor"/>
+                                            </svg>
+                                            <?php echo date_i18n('d.m.Y', $course_dates[get_the_ID()] + 86400); // 86400 Sekunden = 1 Tag ?>
+                                        </div>
+                                    <?php 
+                                    // Zeige Veröffentlichungsdatum für Jobs und News
+                                    elseif (in_array($atts['post_type'], ['jobangebote_dir_ltg', 'news_dir_ltg'])):
+                                        $pub_date = get_post_meta(get_the_ID(), 'field_veroffentlichungsdatum', true);
+                                        // Wenn kein benutzerdefiniertes Datum vorhanden ist, verwende das Post-Datum
+                                        if (!$pub_date) {
+                                            $pub_date = get_the_date('Y-m-d');
+                                        }
+                                        ?>
+                                        <div class="directory-date">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-right: 5px;">
+                                                <path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zM5 6v2h14V6H5zm2 4h10v2H7v-2z" fill="currentColor"/>
+                                            </svg>
+                                            <?php echo date_i18n('d.m.Y', strtotime($pub_date)); ?>
+                                        </div>
+                                    <?php endif;
+                                endif; ?>
                                 <div class="directory-excerpt">
                                     <?php echo wp_trim_words(get_the_excerpt(), 15); ?>
                                 </div>
@@ -159,7 +185,10 @@ function display_author_directories($atts) {
         </div>
         <?php
     } else {
-        echo '<p>Keine Einträge gefunden.</p>';
+        // "Keine Einträge" nur anzeigen wenn hide_empty=no
+        if ($atts['hide_empty'] === 'no') {
+            echo '<p>Keine Einträge gefunden.</p>';
+        }
     }
 
     // WordPress Reset
@@ -179,6 +208,7 @@ function add_author_directories_styles() {
             padding: 0 40px;
             margin: 30px 0;
             background: transparent;
+            overflow: hidden; /* Verhindert Scrollbar-Sprünge */
         }
 
         .author-directories-slider {
@@ -190,6 +220,8 @@ function add_author_directories_styles() {
             -ms-overflow-style: none;
             gap: 25px;
             padding: 20px 0;
+            margin-bottom: -20px; /* Kompensiert den zusätzlichen Platz für die versteckte Scrollbar */
+            margin-right: -20px; /* Kompensiert den zusätzlichen Platz für die versteckte Scrollbar */
         }
 
         .author-directories-slider::-webkit-scrollbar {
