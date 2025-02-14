@@ -3,7 +3,7 @@
 Plugin Name: Author Directories Display
 Plugin URI: 
 Description: Zeigt Directory-Einträge des aktuellen Autors mittels Shortcode an. Unterstützt Jobs, News und Kurse mit verschiedenen Anzeigeoptionen.
-Version: 1.1
+Version: 1.2
 Author: Julian Hilgenberg
 License: GPL v2 or later
 */
@@ -23,7 +23,7 @@ add_action('init', 'register_author_directories_shortcode');
 function display_author_directories($atts) {
     // Standardwerte für Attribute
     $atts = shortcode_atts(array(
-        'post_type' => 'jobangebote_dir_ltg', // Angepasster Post Type
+        'post_type' => 'jobangebote_dir_ltg', 
         'posts_per_page' => -1,          
         'orderby' => 'date',             
         'order' => 'DESC',
@@ -36,8 +36,8 @@ function display_author_directories($atts) {
     // Hole die aktuelle Post ID
     $current_post = get_post();
     
-    // Wenn kein Post gefunden wurde, return leeren String
-    if (!$current_post) {
+    // Wenn kein Post gefunden wurde oder kein Autor gesetzt ist, return leeren String
+    if (!$current_post || !$current_post->post_author) {
         return '';
     }
 
@@ -208,7 +208,7 @@ function add_author_directories_styles() {
             padding: 0 40px;
             margin: 30px 0;
             background: transparent;
-            overflow: hidden; /* Verhindert Scrollbar-Sprünge */
+            overflow: visible; /* Änderung von hidden zu visible */
         }
 
         .author-directories-slider {
@@ -220,16 +220,18 @@ function add_author_directories_styles() {
             -ms-overflow-style: none;
             gap: 25px;
             padding: 20px 0;
-            margin-bottom: -20px; /* Kompensiert den zusätzlichen Platz für die versteckte Scrollbar */
-            margin-right: -20px; /* Kompensiert den zusätzlichen Platz für die versteckte Scrollbar */
-        }
-
-        .author-directories-slider::-webkit-scrollbar {
-            display: none;
+            margin: 0; /* Entferne negative margins */
+            scroll-snap-type: x mandatory; /* Füge Snap-Scrolling hinzu */
         }
 
         .directory-card {
             flex: 0 0 280px;
+            scroll-snap-align: start; /* Füge Snap-Alignment hinzu */
+            min-width: 280px; /* Setze explizite Mindestbreite */
+            width: 280px; /* Setze feste Breite */
+            margin: 0; /* Entferne margins */
+            transform: translateZ(0); /* Hardware-Beschleunigung aktivieren */
+            will-change: transform; /* Optimiere für Animationen */
             background: #ffffff;
             border-radius: 4px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.08);
@@ -349,12 +351,20 @@ function add_author_directories_styles() {
         }
 
         @media (max-width: 768px) {
-            .directory-card {
-                flex: 0 0 260px;
-            }
-            
             .author-directories-container {
                 padding: 0 35px;
+                overflow: hidden; /* Verstecke Overflow nur auf Mobile */
+            }
+            
+            .directory-card {
+                flex: 0 0 260px;
+                min-width: 260px; /* Angepasste Mindestbreite für Mobile */
+                width: 260px; /* Angepasste feste Breite für Mobile */
+            }
+            
+            .author-directories-slider {
+                gap: 20px; /* Reduzierter Abstand auf Mobile */
+                padding: 15px 0;
             }
         }
 
@@ -381,41 +391,61 @@ function add_author_directories_styles() {
             const prevBtn = container.querySelector('.slider-nav.prev');
             const nextBtn = container.querySelector('.slider-nav.next');
             
+            // Verhindere elastisches Scrollen auf iOS
+            slider.addEventListener('touchmove', function(e) {
+                if (this.scrollLeft === 0 && e.touches[0].screenX > this.getBoundingClientRect().left ||
+                    this.scrollLeft === this.scrollWidth - this.clientWidth && e.touches[0].screenX < this.getBoundingClientRect().right) {
+                    e.preventDefault();
+                }
+            }, { passive: false });
+
             if (prevBtn && nextBtn) {
                 // Prüfe initial, ob Scroll möglich ist
                 checkScrollButtons(slider, prevBtn, nextBtn);
                 
-                // Scroll-Event-Listener
+                // Scroll-Event-Listener mit Debouncing
+                let scrollTimeout;
                 slider.addEventListener('scroll', () => {
-                    checkScrollButtons(slider, prevBtn, nextBtn);
+                    if (scrollTimeout) {
+                        window.cancelAnimationFrame(scrollTimeout);
+                    }
+                    scrollTimeout = window.requestAnimationFrame(() => {
+                        checkScrollButtons(slider, prevBtn, nextBtn);
+                    });
                 });
 
+                // Verbesserte Scroll-Funktion
                 prevBtn.addEventListener('click', () => {
+                    const cardWidth = slider.querySelector('.directory-card').offsetWidth;
+                    const scrollAmount = cardWidth + parseInt(getComputedStyle(slider).gap);
                     slider.scrollBy({
-                        left: -300,
+                        left: -scrollAmount,
                         behavior: 'smooth'
                     });
                 });
 
                 nextBtn.addEventListener('click', () => {
+                    const cardWidth = slider.querySelector('.directory-card').offsetWidth;
+                    const scrollAmount = cardWidth + parseInt(getComputedStyle(slider).gap);
                     slider.scrollBy({
-                        left: 300,
+                        left: scrollAmount,
                         behavior: 'smooth'
                     });
                 });
             }
         });
 
-        // Hilfsfunktion zum Prüfen der Scroll-Möglichkeiten
         function checkScrollButtons(slider, prevBtn, nextBtn) {
-            const isAtStart = slider.scrollLeft <= 0;
-            const isAtEnd = slider.scrollLeft >= (slider.scrollWidth - slider.clientWidth - 5);
+            const isAtStart = Math.abs(slider.scrollLeft) < 1;
+            const isAtEnd = Math.abs(slider.scrollWidth - slider.clientWidth - slider.scrollLeft) < 1;
             
             prevBtn.style.opacity = isAtStart ? '0' : '1';
             prevBtn.style.cursor = isAtStart ? 'default' : 'pointer';
+            prevBtn.style.pointerEvents = isAtStart ? 'none' : 'all';
             
             nextBtn.style.opacity = isAtEnd ? '0' : '1';
             nextBtn.style.cursor = isAtEnd ? 'default' : 'pointer';
+            nextBtn.style.pointerEvents = isAtEnd ? 'none' : 'all';
         }
     });
     </script>
